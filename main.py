@@ -36,9 +36,6 @@ def get_clips_dir():
     return clips_dir
 
 
-video = "./videos/usability-testing-demo.mp4"
-
-
 def get_ffmpeg_path():
     if getattr(sys, "frozen", False):
         return os.path.join(sys._MEIPASS, "ffmpeg")
@@ -83,7 +80,7 @@ def extract_audio(videoPath):
                 print(e.stderr.decode())
                 raise
     else:
-        raise Exception(f"Problem with file path. Does this file exist?\n{video}")
+        raise Exception(f"Problem with file path. Does the video file exist?")
 
 
 def transcribe_audio(audioPath):
