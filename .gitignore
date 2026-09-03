@@ -14,3 +14,5 @@ wheels/
 /clips/
 /transcripts/
 /videos/
+
+.DS_STORE
