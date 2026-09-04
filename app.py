@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListWidgetItem,
     QAbstractItemView,
+    QDialog
 )
 from PyQt6.QtCore import pyqtSignal, QThread, Qt, QUrl
 from PyQt6.QtMultimediaWidgets import QVideoWidget
@@ -28,7 +29,6 @@ CSS = """
 QWidget {
     background-color: #0f172a; 
     color: #f1f5f9;            
-    font-family: BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
 }
 
@@ -193,8 +193,6 @@ class FilePicker(QWidget):
         layout.addWidget(file_browser_btn)
         self.setLayout(layout)
 
-        layout.addWidget(file_browser_btn)
-
     def open_file_dialog(self):
         print("File picker opened")
         dialog = QFileDialog(self)
@@ -208,6 +206,51 @@ class FilePicker(QWidget):
                 # self.file_list.addItems([str(Path(filename)) for filename in filenames])
                 self.video_selected.emit(filenames[0])
 
+class HelpDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent, Qt.WindowType.FramelessWindowHint | Qt.WindowType.Popup)
+        # self.setStyleSheet("""
+        #     QDialog {
+        #         background-color: #1e293b;
+        #         border: 2px solid #334155;
+        #         border-radius: 12px;
+        #     }
+        # """)
+        self.setWindowTitle("Clipper - Help")
+        self.setMinimumSize(500, 400)
+        layout = QVBoxLayout()
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 24, 24, 24)
+        #Content setup
+        title_label = QLabel("<h1>Clipper</h1>")
+        subtitle_label = QLabel("<h2>Export clips from a video using the transcript</h2>")
+        instructions_text = """
+            <h3>Instructions</h3>
+            <ul>
+                <li>Select a video from your device by clicking "Load Video"</li>
+                <li>Click "Transcribe" to automatically generate a transcript of the whole video</li>
+                <li>Double click a line in the transcript to jump to that part of the video</li>
+                <li>Select part of the transcript (by cmd/ctrl+click, or clicking and dragging), then click "Export clip" to export that section of the video as a clip</li>
+            </ul>
+            <p>Video clips are exported as the same dimensions and encoding as the original</p>
+            <p>Extracted audio, generated transcripts, and exported clips are all stored in <pre>~/Library/Application Support/ux-clipper</pre></p>
+            <p>If you select a video with the same title as one you've previously loaded and transcribed, Clipper will use the cached video and transcript to speed things up instead of transcribing the video again.</p>
+            <p>If you want to start from scratch in the same video you should change the name of the video file before loading it again.</p>
+            """
+        content_label = QLabel(instructions_text)
+        content_label.setWordWrap(True)
+
+        # Layout setup
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.accept)
+
+        layout.addWidget(title_label)
+        layout.addWidget(subtitle_label)
+        layout.addWidget(content_label)
+        layout.addStretch()
+        layout.addWidget(close_button)
+
+        self.setLayout(layout)
 
 class TranscribeWorker(QThread):
     finished = pyqtSignal(str)
@@ -391,6 +434,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Clipper")
         self.setGeometry(100, 100, 1900, 1060)
 
+        #Top bar
+        top_bar = QHBoxLayout()
+        top_bar.setContentsMargins(12, 8, 12, 0)
+        help_btn = QPushButton("Help")
+        help_btn.clicked.connect(self.show_help)
+        top_bar.addStretch()
+        top_bar.addWidget(help_btn)
+
         # Set up nested widget references
         transcript_panel = TranscriptPanel()
         video_panel = VideoPanel()
@@ -406,9 +457,19 @@ class MainWindow(QMainWindow):
         splitter.addWidget(video_panel)
         splitter.addWidget(transcript_panel)
 
-        self.setCentralWidget(splitter)
+        central_container = QWidget()
+        main_layout = QVBoxLayout(central_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        main_layout.addLayout(top_bar)
+        main_layout.addWidget(splitter, stretch=1)
+
+        self.setCentralWidget(central_container)
         self.show()
 
+    def show_help(self):
+        dialog = HelpDialog(self)
+        dialog.exec()
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
