@@ -1,0 +1,55 @@
+name: Build & Release Apple Silicon release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-macos:
+    name: Build macOS Apple Silicon App
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version" # Or specify "3.11" / "3.12"
+
+      - name: Install project dependencies
+        run: |
+          uv sync
+
+      - name: Make ffmpeg binary executable
+        run: |
+          chmod +x resources/ffmpeg
+
+      - name: Build app with PyInstaller
+        run: |
+          uv run pyinstaller --clean Clipper.spec
+
+      - name: Package .app into a ZIP for Release
+        run: |
+          cd dist
+          zip -r -9 Clipper-macOS-arm64.zip Clipper.app
+
+      - name: Create Git Tag & Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: Clipper v0.1.${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: dist/Clipper-macOS-arm64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
