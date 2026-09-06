@@ -3,38 +3,43 @@ import os
 import json
 import sys
 from pathlib import Path
-
-os.environ["HF_HUB_OFFLINE"] = "1"
-import mlx_whisper
-
+import platform
 
 def get_project_dir():
-    project_dir = Path.home() / "Library" / "Application Support" / "ux-clipper"
+    if platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path.home() / ".local" / "share"
+    project_dir = base / "ux-clipper"
     project_dir.mkdir(parents=True, exist_ok=True)
     return project_dir
 
-
 def get_audio_dir():
-    audio_dir = (
-        Path.home() / "Library" / "Application Support" / "ux-clipper" / "audio_files"
-    )
+    if platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path.home() / ".local" / "share"
+    audio_dir = base / "ux-clipper" / "audio_files"
     audio_dir.mkdir(parents=True, exist_ok=True)
     return audio_dir
 
-
 def get_transcript_dir():
-    transcript_dir = (
-        Path.home() / "Library" / "Application Support" / "ux-clipper" / "transcripts"
-    )
+    if platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path.home() / ".local" / "share"
+    transcript_dir = base / "ux-clipper" / "transcript_files"
     transcript_dir.mkdir(parents=True, exist_ok=True)
     return transcript_dir
 
-
 def get_clips_dir():
-    clips_dir = Path.home() / "Library" / "Application Support" / "ux-clipper" / "clips"
+    if platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path.home() / ".local" / "share"
+    clips_dir = base / "ux-clipper" / "clips"
     clips_dir.mkdir(parents=True, exist_ok=True)
     return clips_dir
-
 
 def get_ffmpeg_path():
     if getattr(sys, "frozen", False):
@@ -82,6 +87,24 @@ def extract_audio(videoPath):
     else:
         raise Exception(f"Problem with file path. Does the video file exist?")
 
+if platform.system() == "Darwin":
+    import mlx_whisper
+
+    def run_transcription(audio_path):
+        return mlx_whisper.transcribe(audio_path)
+else:
+    from faster_whisper import WhisperModel
+
+    _model = None
+
+    def run_transcription(audio_path):
+        global _model
+        if _model is None:
+            _model = WhisperModel("base", device="cpu", compute_type="int8")
+        segments, _ = _model.transcribe(audio_path)
+        # faster-whisper returns an iterator of segment objects, not dicts —
+        # normalize to the same shape your JSON-writing code already expects
+        return {"segments": [{"start": s.start, "end": s.end, "text": s.text} for s in segments]}
 
 def transcribe_audio(audioPath):
     transcriptPath = str(
@@ -91,7 +114,7 @@ def transcribe_audio(audioPath):
         print(f"File already transcribed ({transcriptPath}), using exisiting file")
         return transcriptPath
     else:
-        transcript = mlx_whisper.transcribe(audioPath)
+        transcript = run_transcription(audioPath)
         for segment in transcript["segments"]:
             print(segment)
         print(f"Writing transcript to {transcriptPath}")
@@ -99,7 +122,6 @@ def transcribe_audio(audioPath):
         with open(transcriptPath, "w") as f:
             f.write(json_data)
         return transcriptPath
-
 
 def cut_clip(inputVideoPath, start: str, end: str, clipTitle):
     outputClipPath = str(get_clips_dir() / f"{clipTitle}.mp4")

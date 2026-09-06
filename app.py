@@ -1,4 +1,4 @@
-import sys, os, json, traceback
+import sys, os, json, traceback, platform
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -131,7 +131,11 @@ QLabel#headerLabel {
 """
 
 def setup_crash_logging():
-    log_path = Path.home() / "Library" / "Application Support" / "ux-clipper" / "logs" / "crash.log"
+    if platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path.home() / ".local" / "share"
+    log_path = base / "ux-clipper" / "logs" / "crash.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log_exception(exc_type, exc_value, exc_tb):
@@ -484,8 +488,12 @@ if __name__ == "__main__":
 
     geometry = target_screen.availableGeometry()
 
-    x = geometry.x() + (geometry.width() - window.width()) // 2
-    y = geometry.y() + (geometry.height() - window.height()) // 2
+    width = int(geometry.width() * 0.8)
+    height = int(geometry.height() * 0.8)
+    window.resize(width, height)
+
+    x = geometry.x() + (geometry.width() - width) // 2
+    y = geometry.y() + (geometry.height() - height) // 2
     window.move(x, y)
 
     sys.exit(app.exec())
